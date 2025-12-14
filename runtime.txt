@@ -1,0 +1,7 @@
+pyrogram==2.0.106
+tgcrypto
+aiohttp
+m3u8
+yt-dlp
+pymongo[srv]
+flask
