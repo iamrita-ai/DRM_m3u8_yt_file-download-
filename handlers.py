@@ -1,4 +1,5 @@
 import os
+import time
 import asyncio
 
 from pyrogram import filters, enums
@@ -7,10 +8,15 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from client import bot
 import config
 from db import files, save_file_record
-from utils import is_url, is_youtube_link, classify_url, make_filename_from_url
+from utils import (
+    is_url,
+    is_youtube_link,
+    classify_url,
+    make_filename_from_url,
+    progress_text,
+)
 from downloaders import download_direct, download_m3u8
 from yt_quality import start_yt_flow
-path = os.path.join(config.DOWNLOAD_DIR, f"m3u8_{int(time.time())}.mp4")
 
 
 def main_buttons():
@@ -23,7 +29,9 @@ def main_buttons():
             )]
         )
     if config.OWNER_CONTACT:
-        rows.append([InlineKeyboardButton("💬 Contact Owner", url=config.OWNER_CONTACT)])
+        rows.append(
+            [InlineKeyboardButton("💬 Contact Owner", url=config.OWNER_CONTACT)]
+        )
     return InlineKeyboardMarkup(rows) if rows else None
 
 
@@ -72,7 +80,8 @@ async def help_cmd(client, m):
         "🧿 **How to use**\n\n"
         "• Direct: `https://example.com/video.mp4`\n"
         "• m3u8: `https://example.com/hls/index.m3u8`\n"
-        "• YouTube: `https://youtu.be/abc123` ya `https://www.youtube.com/watch?v=abc123`\n\n"
+        "• YouTube: `https://youtu.be/abc123` ya "
+        "`https://www.youtube.com/watch?v=abc123`\n\n"
         "Main file download karke Telegram pe bhejungi aur DB me save karungi.\n"
         "`/file Avengers` se saved files search kar sakte ho."
     )
@@ -137,12 +146,11 @@ async def url_handler(client, m):
             "Example: `https://example.com/video.mp4`"
         )
 
-    kind = classify_url(text)
-    if kind == "yt":
-        # YouTube link: quality selection flow
+    # YouTube ho to YT quality flow
+    if is_youtube_link(text):
         return await start_yt_flow(client, m, text)
 
-    # Direct / m3u8 download flow
+    kind = classify_url(text)
     filename = make_filename_from_url(text)
     dest = os.path.join(config.DOWNLOAD_DIR, filename)
     title = filename
@@ -152,7 +160,11 @@ async def url_handler(client, m):
     path = None
     try:
         if kind == "m3u8":
-            path = os.path.join(config.DOWNLOAD_DIR, f"m3u8_{int(time.time())}.mp4")
+            # yahan time use ho raha hai, ab 'import time' upar hai
+            path = os.path.join(
+                config.DOWNLOAD_DIR,
+                f"m3u8_{int(time.time())}.mp4"
+            )
             path = await download_m3u8(text, path, status, title)
             is_video = True
             title = os.path.basename(path)
@@ -164,11 +176,10 @@ async def url_handler(client, m):
 
         await status.edit_text("📤 Telegram pe upload ho raha hai…")
 
-        start = time.time()
+        start_ts = time.time()
 
         async def up_progress(current, total):
-            from utils import progress_text
-            txt = progress_text(title, current, total, start, "to Telegram")
+            txt = progress_text(title, current, total, start_ts, "to Telegram")
             try:
                 await status.edit_text(txt)
             except Exception:
