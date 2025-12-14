@@ -10,6 +10,7 @@ from db import files, save_file_record
 from utils import is_url, is_youtube_link, classify_url, make_filename_from_url
 from downloaders import download_direct, download_m3u8
 from yt_quality import start_yt_flow
+path = os.path.join(config.DOWNLOAD_DIR, f"m3u8_{int(time.time())}.mp4")
 
 
 def main_buttons():
